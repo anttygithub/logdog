@@ -1,0 +1,35 @@
+{
+  "logLevel": "DEBUG",
+  "metric": "log",
+  "timer": 10,
+  "agent": "http://10.10.128.53:1988/v1/push",
+  "host": "10-10-128-53",
+  "files": [
+    {
+      "path": "/tmp/log",
+      "prefix": "",
+      "suffix": ".log",
+      "keywords": [
+        {
+          "exp": "error",
+          "tag": "error-tag"
+        },
+        {
+          "exp": "eccor",
+          "tag": "eccor-tag"
+        }
+      ]
+    },
+    {
+      "path": "/data/logs/test1",
+      "prefix": "",
+      "suffix": ".log",
+      "keywords": [
+        {
+          "exp": "ERROR",
+          "tag": "ERROR-TAG"
+        }
+      ]
+    }
+  ]
+}
