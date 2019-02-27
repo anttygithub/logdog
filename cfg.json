@@ -2,32 +2,31 @@
   "logLevel": "DEBUG",
   "metric": "log",
   "timer": 10,
-  "agent": "http://10.10.128.53:1988/v1/push",
-  "host": "10-10-128-53",
+  "agent": "http://xx.xx.xxx.xx:1988/v1/push",
+  "host": "10-10-10-10",
+  "alarmRuleDB": {
+    "enabled": true,
+    "address": "127.0.0.1:3306",
+    "dbName": "doglog",
+    "user": "root",
+    "password": "test123456"
+  },
   "files": [
     {
-      "path": "/tmp/log",
+      "path": "/tmp/log/",
       "prefix": "",
       "suffix": ".log",
       "keywords": [
         {
-          "exp": "error",
-          "tag": "error-tag"
+          "exp": "(?i)PCIe bus error",
+          "tag": "error-tag",
+          "level": "0",
+          "idc": "全部腾讯专有云PDC深圳中兴金云西丽数据中心0107",
+          "use": "交换机"
         },
         {
           "exp": "eccor",
           "tag": "eccor-tag"
-        }
-      ]
-    },
-    {
-      "path": "/data/logs/test1",
-      "prefix": "",
-      "suffix": ".log",
-      "keywords": [
-        {
-          "exp": "ERROR",
-          "tag": "ERROR-TAG"
         }
       ]
     }

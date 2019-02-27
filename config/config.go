@@ -8,20 +8,31 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/astaxie/beego/orm"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-errors/errors"
 	"github.com/hpcloud/tail"
+	"github.com/sdvdxl/falcon-logdog/models"
 )
 
 type Config struct {
-	Metric     string      //度量名称,比如log.console 或者log
-	Timer      int         // 每隔多长时间（秒）上报
-	Host       string      //主机名称
-	Agent      string      //agent api url
-	WatchFiles []WatchFile `json:"files"`
-	LogLevel   string
+	Metric      string      //度量名称,比如log.console 或者log
+	Timer       int         // 每隔多长时间（秒）上报
+	Host        string      //主机名称
+	Agent       string      //agent api url
+	WatchFiles  []WatchFile `json:"files"`
+	LogLevel    string
+	AlarmRuleDB DBConfig
+}
+type DBConfig struct {
+	Enabled  bool
+	Address  string
+	DbName   string
+	User     string
+	Password string
 }
 
 //mod by dennis
@@ -46,6 +57,9 @@ type keyWord struct {
 	Tag      string
 	FixedExp string         `json:"-"` //替换
 	Regex    *regexp.Regexp `json:"-"`
+	Level    string         `json:"level"`
+	Idc      string         `json:"idc"`
+	Use      string         `json:"use"`
 }
 
 //说明：这7个字段都是必须指定
@@ -64,6 +78,7 @@ type PushData struct {
 	Tag    string `json:"tag"`    //一组逗号分割的键值对, 对metric进一步描述和细化, 可以是空字符串. 比如idc=lg，比如service=xbox等，多个tag之间用逗号分割   modify by nic
 	Status string `json:"status"` //add by nic
 	Desc   string `json:"desc"`   //add by nic
+	Level  string `json:"level"`
 }
 
 const configFile = "cfg.json"
@@ -78,7 +93,7 @@ func init() {
 	var err error
 	Cfg, err = ReadConfig(configFile)
 	if err != nil {
-		log.Fatal("ERROR: ", err)
+		log.Fatal("ReadConfig ERROR: ", err)
 	}
 	if err = checkConfig(Cfg); err != nil {
 		log.Fatal(err)
@@ -86,6 +101,17 @@ func init() {
 
 	go func() {
 		ConfigFileWatcher()
+	}()
+	err = InitDatabase()
+	if err != nil {
+		log.Fatal("InitDatabase ERROR: ", err)
+	}
+	go func() {
+		for {
+			time.Sleep(time.Second * 300)
+			reloadNetdevCache()
+			fetchAlarmCache()
+		}
 	}()
 
 	fmt.Println("INFO: config:", Cfg)
@@ -104,10 +130,10 @@ func ReadConfig(configFile string) (*Config, error) {
 
 	fmt.Println(config.LogLevel)
 
-	// 检查配置项目
-	if err := checkConfig(config); err != nil {
-		return nil, err
-	}
+	// // 检查配置项目
+	// if err := checkConfig(config); err != nil {
+	// 	return nil, err
+	// }
 
 	log.Println("config init success, start to work ...")
 	return config, nil
@@ -126,7 +152,16 @@ func checkConfig(config *Config) error {
 		log.Println("host not set will use system's name:", config.Host)
 
 	}
-
+	if config.AlarmRuleDB.Enabled {
+		if config.LogLevel == "DEBUG" {
+			orm.Debug = true
+		} else {
+			orm.Debug = false
+		}
+		fetchAlarmCache()
+	} else {
+		log.Println("INFO:the config.AlarmRuleDB.Enabled is not true")
+	}
 	for i, v := range config.WatchFiles {
 		//检查路径
 		fInfo, err := os.Stat(v.Path)
@@ -175,7 +210,7 @@ func checkConfig(config *Config) error {
 	return nil
 }
 
-//配置文件监控,可以实现热更新
+//ConfigFileWatcher 配置文件监控,可以实现热更新
 func ConfigFileWatcher() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -199,7 +234,6 @@ func ConfigFileWatcher() {
 						log.Println("config reload success")
 						Cfg = cfg
 					}
-
 				}
 			case err := <-watcher.Errors:
 				log.Fatal(err)
@@ -212,4 +246,154 @@ func ConfigFileWatcher() {
 		log.Fatal(err)
 	}
 	<-done
+}
+
+var alarmCache = make(map[string][]keyWord)
+var alarmCacheLock = &sync.RWMutex{}
+
+func reloadAlarmCache() {
+	var err error
+	o := orm.NewOrm()
+	defer func() {
+		if err != nil {
+			log.Fatalf("reloadAlarmCache:%s", err.Error())
+		}
+	}()
+	var res []models.AlarmRule
+	alarmCacheLock.Lock()
+	defer alarmCacheLock.Unlock()
+	if _, err = o.QueryTable(models.AlarmRule{}).Filter("status", "active").Limit(-1).All(&res); err != nil {
+		return
+	}
+
+	alarmCache = make(map[string][]keyWord)
+	for _, v := range res {
+		tmpkwarray := []keyWord{}
+		if _, ok := alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix]; ok {
+			tmpkwarray = alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix]
+		}
+		// 裂解idc和用途
+		idcs := []string{}
+		if v.Idc == "" {
+			idcs = []string{"*"}
+		} else {
+			idcs = strings.Split(v.Idc, ",")
+		}
+		uses := []string{}
+		if v.Use == "" {
+			uses = []string{"*"}
+		} else {
+			uses = strings.Split(v.Use, ",")
+		}
+		log.Println("idcs:", idcs)
+		log.Println("uses:", uses)
+		for _, idc := range idcs {
+			for _, use := range uses {
+				kw := keyWord{
+					Exp:   v.Rule,
+					Tag:   v.Tag,
+					Level: v.Level,
+					Idc:   idc,
+					Use:   use,
+				}
+				tmpkwarray = append(tmpkwarray, kw)
+			}
+		}
+		alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix] = tmpkwarray
+	}
+}
+
+// fetchAlarmCache .
+func fetchAlarmCache() {
+	alarmCacheLock.RLock()
+	if len(alarmCache) == 0 {
+		alarmCacheLock.RUnlock()
+		reloadAlarmCache()
+		alarmCacheLock.RLock()
+	}
+	defer alarmCacheLock.RUnlock()
+	WFS := []WatchFile{}
+	for k, v := range alarmCache {
+		str := strings.Split(k, "??")
+		if len(str) != 3 {
+			log.Fatalf("alarm rule config error,please check :%s", k)
+			return
+		}
+		tmpWF := WatchFile{
+			Path:     str[0],
+			Prefix:   str[1],
+			Suffix:   str[2],
+			Keywords: v,
+		}
+		WFS = append(WFS, tmpWF)
+	}
+	Cfg.WatchFiles = WFS
+	log.Printf("load alarm db cache:%#v", Cfg)
+	return
+}
+
+var netdevCache = make(map[string]models.NetworkDevice)
+var netdevCacheLock = &sync.RWMutex{}
+
+func reloadNetdevCache() {
+	var err error
+	o := orm.NewOrm()
+	defer func() {
+		if err != nil {
+			log.Fatalf("reloadNetdevCache:%s", err.Error())
+		}
+	}()
+	var res []models.NetworkDevice
+	netdevCacheLock.Lock()
+	defer netdevCacheLock.Unlock()
+	// load netdev
+	if _, err = o.QueryTable(models.NetworkDevice{}).Limit(-1).All(&res); err != nil {
+		return
+	}
+
+	netdevCache = make(map[string]models.NetworkDevice)
+	for _, v := range res {
+		netdevCache[v.ManageIp] = v
+	}
+	log.Printf("reloadNetdevCache:%v", netdevCache)
+}
+
+// FetchNetdevCache .
+func FetchNetdevCache() map[string]models.NetworkDevice {
+	netdevCacheLock.RLock()
+	if len(netdevCache) == 0 {
+		netdevCacheLock.RUnlock()
+		reloadNetdevCache()
+		netdevCacheLock.RLock()
+	}
+	defer netdevCacheLock.RUnlock()
+	rtn := make(map[string]models.NetworkDevice)
+	for k, v := range netdevCache {
+		rtn[k] = v
+	}
+	return rtn
+}
+
+// InitDatabase .
+func InitDatabase() error {
+	key := Cfg.AlarmRuleDB.User
+	sectet := Cfg.AlarmRuleDB.Password
+	IPPort := Cfg.AlarmRuleDB.Address
+	database := Cfg.AlarmRuleDB.DbName
+	connectString := key + ":" + sectet + "@tcp(" + IPPort + ")/" + database
+	err := orm.RegisterDriver("mysql", orm.DRMySQL)
+	if err != nil {
+		return err
+	}
+	err = orm.RegisterDataBase("default", "mysql", connectString)
+	if err != nil {
+		return err
+	}
+	if Cfg.LogLevel == "DEBUG" {
+		orm.Debug = true
+	} else {
+		orm.Debug = false
+	}
+	log.Println("init database successed")
+	return nil
 }

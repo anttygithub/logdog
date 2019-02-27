@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/hpcloud/tail"
 	"github.com/sdvdxl/falcon-logdog/config"
 	"github.com/sdvdxl/falcon-logdog/log"
@@ -229,7 +230,25 @@ func setLogFile() {
 // 查找关键词
 func handleKeywords(file config.WatchFile, filename string, line string) {
 	log.Debug(filename)
+	log.Debugf("WatchFile:%#v", file)
+	Netdevs := config.FetchNetdevCache()
 	for _, p := range file.Keywords {
+		ip := getIPFromLog(line)
+		if ip == "" {
+			continue
+		}
+		log.Debugf("ip:%s", ip)
+		if Netdev, ok := Netdevs[ip]; ok {
+			log.Debugf("Netdev.Idc:%s,Netdev.NetdevFunc:%s,Netdev.NetdevFunc:%s,p.Use:%s", Netdev.Idc, p.Idc, Netdev.NetdevFunc, p.Use)
+			if Netdev.Idc != p.Idc && p.Idc != "*" {
+				continue
+			}
+			if Netdev.NetdevFunc != p.Use && p.Use != "*" {
+				continue
+			}
+		} else {
+			continue
+		}
 		//modify by dennis
 		value := ""
 		if p.Regex.MatchString(line) {
@@ -256,6 +275,7 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 					Tag:    "filename=" + filename + ",prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp, //modify by nic
 					Status: "--",                                                                                                          //add by nic
 					Desc:   "--",                                                                                                          //add by nic
+					Level:  p.Level,                                                                                                       //add by nic
 				}
 			}
 
@@ -296,5 +316,15 @@ func postData() {
 
 		<-workers
 	}()
+
+}
+
+func getIPFromLog(line string) (ip string) {
+	re := regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)\.(\d+)`)
+	if len(re.FindAllString(line, -1)) == 0 {
+		log.Error("getIPFromLog error:", re.FindAllString(line, -1))
+		return ""
+	}
+	return re.FindAllString(line, -1)[0]
 
 }
