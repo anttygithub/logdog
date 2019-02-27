@@ -230,7 +230,7 @@ func setLogFile() {
 // 查找关键词
 func handleKeywords(file config.WatchFile, filename string, line string) {
 	log.Debug(filename)
-	log.Debugf("WatchFile:%#v", file)
+	log.Debugf("WatchFile:%+v", file)
 	Netdevs := config.FetchNetdevCache()
 	for _, p := range file.Keywords {
 		ip := getIPFromLog(line)

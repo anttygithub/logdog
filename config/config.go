@@ -328,7 +328,7 @@ func fetchAlarmCache() {
 		WFS = append(WFS, tmpWF)
 	}
 	Cfg.WatchFiles = WFS
-	log.Printf("load alarm db cache:%#v", Cfg)
+	log.Printf("load alarm db cache:%+v", Cfg)
 	return
 }
 
