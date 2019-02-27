@@ -7,7 +7,7 @@
   "alarmRuleDB": {
     "enabled": true,
     "address": "127.0.0.1:3306",
-    "dbName": "doglog",
+    "dbName": "logdog",
     "user": "root",
     "password": "test123456"
   },

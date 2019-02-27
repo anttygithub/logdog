@@ -95,6 +95,10 @@ func init() {
 	if err != nil {
 		log.Fatal("ReadConfig ERROR: ", err)
 	}
+	err = InitDatabase()
+	if err != nil {
+		log.Fatal("InitDatabase ERROR: ", err)
+	}
 	if err = checkConfig(Cfg); err != nil {
 		log.Fatal(err)
 	}
@@ -102,10 +106,6 @@ func init() {
 	go func() {
 		ConfigFileWatcher()
 	}()
-	err = InitDatabase()
-	if err != nil {
-		log.Fatal("InitDatabase ERROR: ", err)
-	}
 	go func() {
 		for {
 			time.Sleep(time.Second * 300)
@@ -268,9 +268,10 @@ func reloadAlarmCache() {
 
 	alarmCache = make(map[string][]keyWord)
 	for _, v := range res {
+		key := v.Path + "??" + v.Prefix + "??" + v.Suffix
 		tmpkwarray := []keyWord{}
-		if _, ok := alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix]; ok {
-			tmpkwarray = alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix]
+		if _, ok := alarmCache[key]; ok {
+			tmpkwarray = alarmCache[key]
 		}
 		// 裂解idc和用途
 		idcs := []string{}
@@ -299,7 +300,8 @@ func reloadAlarmCache() {
 				tmpkwarray = append(tmpkwarray, kw)
 			}
 		}
-		alarmCache[v.Path+"??"+v.Prefix+"??"+v.Suffix] = tmpkwarray
+		alarmCache[key] = tmpkwarray
+		log.Printf("reloadalarmcache,v:%#v", alarmCache)
 	}
 }
 
@@ -328,7 +330,7 @@ func fetchAlarmCache() {
 		WFS = append(WFS, tmpWF)
 	}
 	Cfg.WatchFiles = WFS
-	log.Printf("load alarm db cache:%+v", Cfg)
+	log.Printf("load alarm db cache:%#v", Cfg)
 	return
 }
 
