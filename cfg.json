@@ -9,7 +9,8 @@
     "address": "127.0.0.1:3306",
     "dbName": "logdog",
     "user": "root",
-    "password": "test123456"
+    "password": "test123456",
+    "reloadTime": 10
   },
   "files": [
     {

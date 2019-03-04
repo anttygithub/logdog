@@ -28,11 +28,12 @@ type Config struct {
 	AlarmRuleDB DBConfig
 }
 type DBConfig struct {
-	Enabled  bool
-	Address  string
-	DbName   string
-	User     string
-	Password string
+	Enabled    bool
+	Address    string
+	DbName     string
+	User       string
+	Password   string
+	ReloadTime int
 }
 
 //mod by dennis
@@ -102,13 +103,12 @@ func init() {
 	if err = checkConfig(Cfg); err != nil {
 		log.Fatal(err)
 	}
-
 	go func() {
 		ConfigFileWatcher()
 	}()
 	go func() {
 		for {
-			time.Sleep(time.Second * 300)
+			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 			reloadNetdevCache()
 			fetchAlarmCache()
 		}
