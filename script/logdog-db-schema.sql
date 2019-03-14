@@ -43,7 +43,7 @@ CREATE TABLE `network_device` (
   `shelf` varchar(255) DEFAULT '' COMMENT 'shelf',
   `network_area` varchar(255) DEFAULT '' COMMENT 'network_area',
   `schema_version` varchar(255) DEFAULT '' COMMENT 'schema_version',
-  `ror_name` varchar(255) DEFAULT '' COMMENT 'ror_name',
+  `tor_name` varchar(255) DEFAULT '' COMMENT 'tor_name',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;

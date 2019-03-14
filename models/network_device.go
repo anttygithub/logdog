@@ -19,7 +19,7 @@ type NetworkDevice struct {
 	Shelf            string `orm:"column(shelf);size(255);null" description:"shelf"`
 	NetworkArea      string `orm:"column(network_area);size(255);null" description:"network_area"`
 	SchemaVersion    string `orm:"column(schema_version);size(255);null" description:"schema_version"`
-	RorName          string `orm:"column(ror_name);size(255);null" description:"ror_name"`
+	TorName          string `orm:"column(tor_name);size(255);null" description:"tor_name"`
 }
 
 func (t *NetworkDevice) TableName() string {
