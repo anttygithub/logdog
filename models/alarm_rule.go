@@ -11,21 +11,16 @@ import (
 )
 
 type AlarmRule struct {
-	Id      int       `orm:"column(id);auto" description:"id"`
-	Name    string    `orm:"column(name);size(255)" description:"rule name"`
-	Idc     string    `orm:"column(idc);size(255)" description:"machine room"`
-	Use     string    `orm:"column(use);size(255)" description:"the device use for "`
-	Path    string    `orm:"column(path);size(255)" description:"path"`
-	Prefix  string    `orm:"column(prefix);size(255);null" description:"prefix"`
-	Suffix  string    `orm:"column(suffix);size(255)" description:"suffix"`
-	Tag     string    `orm:"column(tag);size(255)" description:"tag"`
-	Rule    string    `orm:"column(rule)" description:"the rule in regular expression for match the keywork "`
-	Level   string    `orm:"column(level)" description:"alarm level('critical','major','warning','minor','info')"`
-	Status  string    `orm:"column(status)" description:"record status"`
-	Creator uint      `orm:"column(creator);null" description:"creator"`
-	Created time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
-	Updator uint      `orm:"column(updator);null" description:"updator"`
-	Updated time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
+	Id         int       `orm:"column(id);auto" description:"id"`
+	DeviceType string    `orm:"column(device_type);size(255)" description:"device_type"`
+	AlarmType  string    `orm:"column(alarm_type);size(255)" description:"the rule in regular expression for match the keywork "`
+	JsonFilter string    `orm:"column(json_filter)" description:"json_filter"`
+	Level      string    `orm:"column(level)" description:"alarm level('critical','major','warning','minor','info')"`
+	Status     string    `orm:"column(status)" description:"record status"`
+	Creator    uint      `orm:"column(creator);null" description:"creator"`
+	Created    time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
+	Updator    uint      `orm:"column(updator);null" description:"updator"`
+	Updated    time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
 }
 
 func (t *AlarmRule) TableName() string {

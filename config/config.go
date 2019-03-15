@@ -8,14 +8,12 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/astaxie/beego/orm"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-errors/errors"
 	"github.com/hpcloud/tail"
-	"github.com/sdvdxl/falcon-logdog/models"
 )
 
 type Config struct {
@@ -54,13 +52,11 @@ type WatchFile struct {
 }
 
 type keyWord struct {
+	Key      string //device_type+alarm_type
 	Exp      string
 	Tag      string
 	FixedExp string         `json:"-"` //替换
 	Regex    *regexp.Regexp `json:"-"`
-	Level    string         `json:"level"`
-	Idc      string         `json:"idc"`
-	Use      string         `json:"use"`
 }
 
 //说明：这7个字段都是必须指定
@@ -110,7 +106,8 @@ func init() {
 		for {
 			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 			reloadNetdevCache()
-			fetchAlarmCache()
+			fetchKeywordCache()
+			reloadFilterCache()
 		}
 	}()
 
@@ -158,7 +155,7 @@ func checkConfig(config *Config) error {
 		} else {
 			orm.Debug = false
 		}
-		fetchAlarmCache()
+		fetchKeywordCache()
 	} else {
 		log.Println("INFO:the config.AlarmRuleDB.Enabled is not true")
 	}
@@ -246,156 +243,4 @@ func ConfigFileWatcher() {
 		log.Fatal(err)
 	}
 	<-done
-}
-
-var alarmCache = make(map[string][]keyWord)
-var alarmCacheLock = &sync.RWMutex{}
-
-func reloadAlarmCache() {
-	var err error
-	o := orm.NewOrm()
-	defer func() {
-		if err != nil {
-			log.Fatalf("reloadAlarmCache:%s", err.Error())
-		}
-	}()
-	var res []models.AlarmRule
-	alarmCacheLock.Lock()
-	defer alarmCacheLock.Unlock()
-	if _, err = o.QueryTable(models.AlarmRule{}).Filter("status", "active").Limit(-1).All(&res); err != nil {
-		return
-	}
-
-	alarmCache = make(map[string][]keyWord)
-	for _, v := range res {
-		key := v.Path + "??" + v.Prefix + "??" + v.Suffix
-		tmpkwarray := []keyWord{}
-		if _, ok := alarmCache[key]; ok {
-			tmpkwarray = alarmCache[key]
-		}
-		// 裂解idc和用途
-		idcs := []string{}
-		if v.Idc == "" {
-			idcs = []string{"*"}
-		} else {
-			idcs = strings.Split(v.Idc, ",")
-		}
-		uses := []string{}
-		if v.Use == "" {
-			uses = []string{"*"}
-		} else {
-			uses = strings.Split(v.Use, ",")
-		}
-		log.Println("idcs:", idcs)
-		log.Println("uses:", uses)
-		for _, idc := range idcs {
-			for _, use := range uses {
-				kw := keyWord{
-					Exp:   v.Rule,
-					Tag:   v.Tag,
-					Level: v.Level,
-					Idc:   idc,
-					Use:   use,
-				}
-				tmpkwarray = append(tmpkwarray, kw)
-			}
-		}
-		alarmCache[key] = tmpkwarray
-		log.Printf("reloadalarmcache,v:%#v", alarmCache)
-	}
-}
-
-// fetchAlarmCache .
-func fetchAlarmCache() {
-	alarmCacheLock.RLock()
-	if len(alarmCache) == 0 {
-		alarmCacheLock.RUnlock()
-		reloadAlarmCache()
-		alarmCacheLock.RLock()
-	}
-	defer alarmCacheLock.RUnlock()
-	WFS := []WatchFile{}
-	for k, v := range alarmCache {
-		str := strings.Split(k, "??")
-		if len(str) != 3 {
-			log.Fatalf("alarm rule config error,please check :%s", k)
-			return
-		}
-		tmpWF := WatchFile{
-			Path:     str[0],
-			Prefix:   str[1],
-			Suffix:   str[2],
-			Keywords: v,
-		}
-		WFS = append(WFS, tmpWF)
-	}
-	Cfg.WatchFiles = WFS
-	log.Printf("load alarm db cache:%#v", Cfg)
-	return
-}
-
-var netdevCache = make(map[string]models.NetworkDevice)
-var netdevCacheLock = &sync.RWMutex{}
-
-func reloadNetdevCache() {
-	var err error
-	o := orm.NewOrm()
-	defer func() {
-		if err != nil {
-			log.Fatalf("reloadNetdevCache:%s", err.Error())
-		}
-	}()
-	var res []models.NetworkDevice
-	netdevCacheLock.Lock()
-	defer netdevCacheLock.Unlock()
-	// load netdev
-	if _, err = o.QueryTable(models.NetworkDevice{}).Limit(-1).All(&res); err != nil {
-		return
-	}
-
-	netdevCache = make(map[string]models.NetworkDevice)
-	for _, v := range res {
-		netdevCache[v.ManageIp] = v
-	}
-	log.Printf("reloadNetdevCache:%v", netdevCache)
-}
-
-// FetchNetdevCache .
-func FetchNetdevCache() map[string]models.NetworkDevice {
-	netdevCacheLock.RLock()
-	if len(netdevCache) == 0 {
-		netdevCacheLock.RUnlock()
-		reloadNetdevCache()
-		netdevCacheLock.RLock()
-	}
-	defer netdevCacheLock.RUnlock()
-	rtn := make(map[string]models.NetworkDevice)
-	for k, v := range netdevCache {
-		rtn[k] = v
-	}
-	return rtn
-}
-
-// InitDatabase .
-func InitDatabase() error {
-	key := Cfg.AlarmRuleDB.User
-	sectet := Cfg.AlarmRuleDB.Password
-	IPPort := Cfg.AlarmRuleDB.Address
-	database := Cfg.AlarmRuleDB.DbName
-	connectString := key + ":" + sectet + "@tcp(" + IPPort + ")/" + database
-	err := orm.RegisterDriver("mysql", orm.DRMySQL)
-	if err != nil {
-		return err
-	}
-	err = orm.RegisterDataBase("default", "mysql", connectString)
-	if err != nil {
-		return err
-	}
-	if Cfg.LogLevel == "DEBUG" {
-		orm.Debug = true
-	} else {
-		orm.Debug = false
-	}
-	log.Println("init database successed")
-	return nil
 }

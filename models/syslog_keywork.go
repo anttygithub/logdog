@@ -5,63 +5,60 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/astaxie/beego/orm"
 )
 
-type NetworkDevice struct {
-	Id               int    `orm:"column(id);auto" description:"id"`
-	Name             string `orm:"column(name);size(255)" description:"name"`
-	NetDeviceAssetid string `orm:"column(net_device_assetid);size(255);null" description:"net_device_assetid"`
-	Idc              string `orm:"column(idc);size(255);null" description:"idc"`
-	StandardModel    string `orm:"column(standard_model);size(255);null" description:"standard_model"`
-	Status           string `orm:"column(status);size(255);null" description:"status"`
-	Sn               string `orm:"column(sn);size(255);null" description:"sn"`
-	DeviceType       string `orm:"column(device_type);size(255);null" description:"device_type"`
-	Supplier         string `orm:"column(supplier);size(255);null" description:"supplier"`
-	DeviceModel      string `orm:"column(device_model);size(255);null" description:"device_model"`
-	DeviceManager    string `orm:"column(device_manager);size(255);null" description:"device_manager"`
-	NetdevFunc       string `orm:"column(netdev_func);size(255);null" description:"netdev_func"`
-	ManageIp         string `orm:"column(manage_ip);size(255);null" description:"manage_ip"`
-	Shelf            string `orm:"column(shelf);size(255);null" description:"shelf"`
-	NetworkArea      string `orm:"column(network_area);size(255);null" description:"network_area"`
-	SchemaVersion    string `orm:"column(schema_version);size(255);null" description:"schema_version"`
-	TorName          string `orm:"column(tor_name);size(255);null" description:"tor_name"`
+type SyslogKeywork struct {
+	Id             int       `orm:"column(id);auto" description:"id"`
+	DeviceType     string    `orm:"column(device_type);size(255)" description:"device_type"`
+	AlarmType      string    `orm:"column(alarm_type);size(255)" description:"alarm_type"`
+	Path           string    `orm:"column(path);size(255)" description:"path"`
+	Prefix         string    `orm:"column(prefix);size(255);null" description:"path"`
+	Suffix         string    `orm:"column(suffix);size(255)" description:"path"`
+	Tag            string    `orm:"column(tag);size(255)" description:"path"`
+	SysylogKeywrod string    `orm:"column(sysylog_keywrod)" description:"json_filter"`
+	Status         string    `orm:"column(status)" description:"record status"`
+	Creator        uint      `orm:"column(creator);null" description:"creator"`
+	Created        time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
+	Updator        uint      `orm:"column(updator);null" description:"updator"`
+	Updated        time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
 }
 
-func (t *NetworkDevice) TableName() string {
-	return "network_device"
+func (t *SyslogKeywork) TableName() string {
+	return "syslog_keywork"
 }
 
 func init() {
-	orm.RegisterModel(new(NetworkDevice))
+	orm.RegisterModel(new(SyslogKeywork))
 }
 
-// AddNetworkDevice insert a new NetworkDevice into database and returns
+// AddSyslogKeywork insert a new SyslogKeywork into database and returns
 // last inserted Id on success.
-func AddNetworkDevice(m *NetworkDevice) (id int64, err error) {
+func AddSyslogKeywork(m *SyslogKeywork) (id int64, err error) {
 	o := orm.NewOrm()
 	id, err = o.Insert(m)
 	return
 }
 
-// GetNetworkDeviceById retrieves NetworkDevice by Id. Returns error if
+// GetSyslogKeyworkById retrieves SyslogKeywork by Id. Returns error if
 // Id doesn't exist
-func GetNetworkDeviceById(id int) (v *NetworkDevice, err error) {
+func GetSyslogKeyworkById(id int) (v *SyslogKeywork, err error) {
 	o := orm.NewOrm()
-	v = &NetworkDevice{Id: id}
+	v = &SyslogKeywork{Id: id}
 	if err = o.Read(v); err == nil {
 		return v, nil
 	}
 	return nil, err
 }
 
-// GetAllNetworkDevice retrieves all NetworkDevice matches certain condition. Returns empty list if
+// GetAllSyslogKeywork retrieves all SyslogKeywork matches certain condition. Returns empty list if
 // no records exist
-func GetAllNetworkDevice(query map[string]string, fields []string, sortby []string, order []string,
+func GetAllSyslogKeywork(query map[string]string, fields []string, sortby []string, order []string,
 	offset int64, limit int64) (ml []interface{}, err error) {
 	o := orm.NewOrm()
-	qs := o.QueryTable(new(NetworkDevice))
+	qs := o.QueryTable(new(SyslogKeywork))
 	// query k=v
 	for k, v := range query {
 		// rewrite dot-notation to Object__Attribute
@@ -111,7 +108,7 @@ func GetAllNetworkDevice(query map[string]string, fields []string, sortby []stri
 		}
 	}
 
-	var l []NetworkDevice
+	var l []SyslogKeywork
 	qs = qs.OrderBy(sortFields...)
 	if _, err = qs.Limit(limit, offset).All(&l, fields...); err == nil {
 		if len(fields) == 0 {
@@ -134,11 +131,11 @@ func GetAllNetworkDevice(query map[string]string, fields []string, sortby []stri
 	return nil, err
 }
 
-// UpdateNetworkDevice updates NetworkDevice by Id and returns error if
+// UpdateSyslogKeywork updates SyslogKeywork by Id and returns error if
 // the record to be updated doesn't exist
-func UpdateNetworkDeviceById(m *NetworkDevice) (err error) {
+func UpdateSyslogKeyworkById(m *SyslogKeywork) (err error) {
 	o := orm.NewOrm()
-	v := NetworkDevice{Id: m.Id}
+	v := SyslogKeywork{Id: m.Id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
@@ -149,15 +146,15 @@ func UpdateNetworkDeviceById(m *NetworkDevice) (err error) {
 	return
 }
 
-// DeleteNetworkDevice deletes NetworkDevice by Id and returns error if
+// DeleteSyslogKeywork deletes SyslogKeywork by Id and returns error if
 // the record to be deleted doesn't exist
-func DeleteNetworkDevice(id int) (err error) {
+func DeleteSyslogKeywork(id int) (err error) {
 	o := orm.NewOrm()
-	v := NetworkDevice{Id: id}
+	v := SyslogKeywork{Id: id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
-		if num, err = o.Delete(&NetworkDevice{Id: id}); err == nil {
+		if num, err = o.Delete(&SyslogKeywork{Id: id}); err == nil {
 			fmt.Println("Number of records deleted in database:", num)
 		}
 	}

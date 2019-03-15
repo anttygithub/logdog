@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -231,28 +232,20 @@ func setLogFile() {
 func handleKeywords(file config.WatchFile, filename string, line string) {
 	log.Debug(filename)
 	log.Debugf("WatchFile:%+v", file)
-	Netdevs := config.FetchNetdevCache()
 	for _, p := range file.Keywords {
 		ip := getIPFromLog(line)
 		if ip == "" {
-			continue
-		}
-		log.Debugf("ip:%s", ip)
-		if Netdev, ok := Netdevs[ip]; ok {
-			log.Debugf("Netdev.Idc:%s,Netdev.NetdevFunc:%s,Netdev.NetdevFunc:%s,p.Use:%s", Netdev.Idc, p.Idc, Netdev.NetdevFunc, p.Use)
-			if Netdev.Idc != p.Idc && p.Idc != "*" {
-				continue
-			}
-			if Netdev.NetdevFunc != p.Use && p.Use != "*" {
-				continue
-			}
-		} else {
 			continue
 		}
 		//modify by dennis
 		value := ""
 		if p.Regex.MatchString(line) {
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
+			title, level, err := matchFilter(ip, p.Key)
+			if err != nil {
+				log.Error("matchFilter error:", err.Error())
+				continue
+			}
 			//modify by dennis
 			value = line
 
@@ -267,15 +260,15 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 			} else {
 				stringValue := []string{value}
 				data = config.PushData{Metric: config.Cfg.Metric,
-					Endpoint:  "--", //config.Cfg.Host
+					Endpoint:  ip,
 					Timestamp: time.Now().Unix(),
 					Value:     stringValue,
 					//Step:        config.Cfg.Timer,  //modify by nic
 					Type:   "network",                                                                                                     //modify by nic
 					Tag:    "filename=" + filename + ",prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp, //modify by nic
-					Status: "--",                                                                                                          //add by nic
-					Desc:   "--",                                                                                                          //add by nic
-					Level:  p.Level,                                                                                                       //add by nic
+					Status: "PROBLEM",                                                                                                     //add by nic
+					Desc:   title,                                                                                                         //add by nic
+					Level:  level,                                                                                                         //add by nic
 				}
 			}
 
@@ -327,4 +320,42 @@ func getIPFromLog(line string) (ip string) {
 	}
 	return re.FindAllString(line, -1)[0]
 
+}
+
+func matchFilter(ip, key string) (title, alarmLevel string, err error) {
+	allNetdevs := config.FetchNetdevCache()
+	if _, ok := allNetdevs[ip]; !ok {
+		err = fmt.Errorf("can not find the ip:%s from cache", ip)
+		return
+	}
+	allFilters := config.FetchFilterCache()
+	if _, ok := allFilters[key]; !ok {
+		err = fmt.Errorf("can not find the filter key:%s from cache", key)
+		return
+	}
+	Netdev := allNetdevs[ip]
+	Filters := allFilters[key]
+	for i := 0; i < len(Filters); i++ { //handle one filter
+		filter := Filters[i]
+		for k, v := range filter.Filter { //handle one field
+			if !ArrayCation(v, Netdev[k].(string)) {
+				log.Debugf("can not match the filter :%s from cache", k+":"+Netdev[k].(string))
+				break
+			}
+		}
+		title = strings.Split(key, "??")[1]
+		alarmLevel = filter.Level
+		return
+	}
+	return
+}
+
+// ArrayCation .
+func ArrayCation(strs []string, str string) bool {
+	for _, s := range strs {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
