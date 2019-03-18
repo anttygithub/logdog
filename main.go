@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -232,18 +231,27 @@ func setLogFile() {
 func handleKeywords(file config.WatchFile, filename string, line string) {
 	log.Debug(filename)
 	log.Debugf("WatchFile:%+v", file)
+	//get network device cache
+	ip := getIPFromLog(line)
+	if ip == "" {
+		return
+	}
+	allNetdevs := config.FetchNetdevCache()
+	if _, ok := allNetdevs[ip]; !ok {
+		return
+	}
+	Netdev := allNetdevs[ip]
+
 	for _, p := range file.Keywords {
-		ip := getIPFromLog(line)
-		if ip == "" {
-			continue
-		}
 		//modify by dennis
 		value := ""
-		if p.Regex.MatchString(line) {
+		if p.Regex.MatchString(line) { //match the keyword
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
-			title, level, err := matchFilter(ip, p.Key)
-			if err != nil {
-				log.Error("matchFilter error:", err.Error())
+			if !matchNetdevType(Netdev, p.DeviceType) { //match network device type and keywork cache
+				continue
+			}
+			title, level := matchFilter(Netdev, p.AlarmType) //match network device and filter cache
+			if title == "" && level == "" {
 				continue
 			}
 			//modify by dennis
@@ -322,36 +330,49 @@ func getIPFromLog(line string) (ip string) {
 
 }
 
-func matchFilter(ip, key string) (title, alarmLevel string, err error) {
-	allNetdevs := config.FetchNetdevCache()
-	if _, ok := allNetdevs[ip]; !ok {
-		err = fmt.Errorf("can not find the ip:%s from cache", ip)
-		return
+func matchNetdevType(Netdev map[string]interface{}, DeviceType string) bool {
+	if _, ok := Netdev["device_type"]; !ok {
+		return false
 	}
+	if Netdev["device_type"].(string) != DeviceType {
+		return false
+	}
+	return true
+}
+
+func matchFilter(Netdev map[string]interface{}, AlarmType string) (title, alarmLevel string) {
 	allFilters := config.FetchFilterCache()
-	if _, ok := allFilters[key]; !ok {
-		err = fmt.Errorf("can not find the filter key:%s from cache", key)
+	if _, ok := allFilters[AlarmType]; !ok {
 		return
 	}
-	Netdev := allNetdevs[ip]
-	Filters := allFilters[key]
+	Filters := allFilters[AlarmType]
+
 	for i := 0; i < len(Filters); i++ { //handle one filter
 		filter := Filters[i]
+		flag := true
 		for k, v := range filter.Filter { //handle one field
-			if !ArrayCation(v, Netdev[k].(string)) {
+			if _, ok := Netdev[k]; !ok {
+				flag = false
+				log.Debugf("can not match the filter :%s from netdev cache", k)
+				break
+			}
+			if !ArrayIn(v, Netdev[k].(string)) {
+				flag = false
 				log.Debugf("can not match the filter :%s from cache", k+":"+Netdev[k].(string))
 				break
 			}
 		}
-		title = strings.Split(key, "??")[1]
-		alarmLevel = filter.Level
-		return
+		if flag == true {
+			title = AlarmType
+			alarmLevel = filter.Level
+			return
+		}
 	}
 	return
 }
 
-// ArrayCation .
-func ArrayCation(strs []string, str string) bool {
+// ArrayIn .
+func ArrayIn(strs []string, str string) bool {
 	for _, s := range strs {
 		if s == str {
 			return true

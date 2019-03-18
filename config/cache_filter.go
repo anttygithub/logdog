@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 
@@ -27,21 +28,27 @@ func reloadFilterCache() {
 	var err error
 	o := orm.NewOrm()
 	defer func() {
+		// if e := recover(); e != nil {
+		// 	err = e.(error)
+		// }
 		if err != nil {
 			log.Fatalf("reloadFilterCache:%s", err.Error())
 		}
 	}()
-	var res []orm.Params
 	filterCacheLock.Lock()
 	defer filterCacheLock.Unlock()
 	// load filter
-	if _, err = o.QueryTable(models.AlarmRule{}).Limit(-1).Values(&res); err != nil {
+	var res []models.AlarmRule
+	if _, err = o.QueryTable(&models.AlarmRule{}).Limit(-1).All(&res); err != nil {
 		return
 	}
-	for _, v := range res {
-		_, ok1 := v["device_type"]
-		_, ok2 := v["alarm_type"]
-		if !ok1 || !ok2 {
+	var mapres []map[string]interface{}
+	for i := 0; i < len(res); i++ {
+		mapres = append(mapres, OrmStructToMap(res[i]))
+	}
+	filterCache = make(map[string]Filters)
+	for _, v := range mapres {
+		if _, ok := v["alarm_type"]; !ok {
 			continue
 		}
 		jsonStr := v["json_filter"].(string)
@@ -57,10 +64,6 @@ func reloadFilterCache() {
 		filter := make(map[string][]string)
 		for feildName, value := range mapResult {
 			vs := strings.Split(value.(string), ",")
-			if feildName == "device_type" {
-				filter["device_type"] = []string{v["device_type"].(string)}
-				continue
-			}
 			filter[feildName] = vs
 		}
 		f := Filter{
@@ -69,11 +72,14 @@ func reloadFilterCache() {
 			Level:     v["level"].(string),
 		}
 		fs := Filters{}
-		if _, ok3 := filterCache[v["device_type"].(string)+"??"+v["alarm_type"].(string)]; ok3 {
-			fs = filterCache[v["device_type"].(string)+"??"+v["alarm_type"].(string)]
+		if _, ok := filterCache[v["alarm_type"].(string)]; ok {
+			fs = filterCache[v["alarm_type"].(string)]
 		}
 		fs = append(fs, f)
-		filterCache[v["device_type"].(string)+"??"+v["alarm_type"].(string)] = fs
+		filterCache[v["alarm_type"].(string)] = fs
+	}
+	for k := range filterCache {
+		sort.Sort(filterCache[k])
 	}
 	log.Printf("reloadFilterCache:%v", filterCache)
 }
@@ -94,4 +100,14 @@ func FetchFilterCache() map[string]Filters {
 	return rtn
 }
 
-//TODO sort filter
+//sort filter
+// 按照 Filter.FilterLen 从大到小排序
+func (a Filters) Len() int { // 重写 Len() 方法
+	return len(a)
+}
+func (a Filters) Swap(i, j int) { // 重写 Swap() 方法
+	a[i], a[j] = a[j], a[i]
+}
+func (a Filters) Less(i, j int) bool { // 重写 Less() 方法， 从大到小排序
+	return a[j].FilterLen < a[i].FilterLen
+}

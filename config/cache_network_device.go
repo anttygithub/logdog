@@ -8,32 +8,35 @@ import (
 	"github.com/sdvdxl/falcon-logdog/models"
 )
 
-var netdevCache = make(map[string]orm.Params)
+var netdevCache = make(map[string]map[string]interface{})
 var netdevCacheLock = &sync.RWMutex{}
 
 func reloadNetdevCache() {
 	var err error
 	o := orm.NewOrm()
 	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
 		if err != nil {
 			log.Fatalf("reloadNetdevCache:%s", err.Error())
 		}
 	}()
-	var res []orm.Params
 	netdevCacheLock.Lock()
 	defer netdevCacheLock.Unlock()
 	// load netdev
-	if _, err = o.QueryTable(models.NetworkDevice{}).Limit(-1).Values(&res); err != nil {
+	var res []models.NetworkDevice
+	if _, err = o.QueryTable(&models.NetworkDevice{}).Limit(-1).All(&res); err != nil {
 		return
 	}
 	for _, v := range res {
-		netdevCache[v["manage_ip"].(string)] = v
+		netdevCache[v.ManageIp] = OrmStructToMap(v)
 	}
 	log.Printf("reloadNetdevCache:%v", netdevCache)
 }
 
 // FetchNetdevCache .
-func FetchNetdevCache() map[string]orm.Params {
+func FetchNetdevCache() map[string]map[string]interface{} {
 	netdevCacheLock.RLock()
 	if len(netdevCache) == 0 {
 		netdevCacheLock.RUnlock()
@@ -41,7 +44,7 @@ func FetchNetdevCache() map[string]orm.Params {
 		netdevCacheLock.RLock()
 	}
 	defer netdevCacheLock.RUnlock()
-	rtn := make(map[string]orm.Params)
+	rtn := make(map[string]map[string]interface{})
 	for k, v := range netdevCache {
 		rtn[k] = v
 	}

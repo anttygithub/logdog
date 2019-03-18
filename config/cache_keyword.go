@@ -31,9 +31,10 @@ func reloadKeywordCache() {
 	for _, v := range res {
 		key := v.Path + "??" + v.Prefix + "??" + v.Suffix
 		kw := keyWord{
-			Key: v.DeviceType + v.AlarmType,
-			Exp: v.SysylogKeywrod,
-			Tag: v.Tag,
+			DeviceType: v.DeviceType,
+			AlarmType:  v.AlarmType,
+			Exp:        v.SysylogKeywrod,
+			Tag:        v.Tag,
 		}
 		tmpkwarray := []keyWord{}
 		if _, ok := alarmCache[key]; ok {

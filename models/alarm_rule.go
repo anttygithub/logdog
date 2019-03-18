@@ -12,7 +12,6 @@ import (
 
 type AlarmRule struct {
 	Id         int       `orm:"column(id);auto" description:"id"`
-	DeviceType string    `orm:"column(device_type);size(255)" description:"device_type"`
 	AlarmType  string    `orm:"column(alarm_type);size(255)" description:"the rule in regular expression for match the keywork "`
 	JsonFilter string    `orm:"column(json_filter)" description:"json_filter"`
 	Level      string    `orm:"column(level)" description:"alarm level('critical','major','warning','minor','info')"`

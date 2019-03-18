@@ -4,28 +4,21 @@ create database logdog
 USE logdog;
 SET NAMES utf8;
 
-DROP TABLE if exists `alarm_rule`;
+-- Create syntax for TABLE 'alarm_rule'
 CREATE TABLE `alarm_rule` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
-  `name` varchar(255) NOT NULL DEFAULT '' COMMENT 'rule name',
-  `idc` varchar(255) NOT NULL DEFAULT '' COMMENT 'machine room',
-  `use` varchar(255) NOT NULL DEFAULT '' COMMENT 'the device use for ',
-  `path` varchar(255) NOT NULL DEFAULT '/log' COMMENT 'path',
-  `prefix` varchar(255) DEFAULT NULL COMMENT 'prefix',
-  `suffix` varchar(255) NOT NULL DEFAULT '.log' COMMENT 'suffix',
-  `tag` varchar(255) NOT NULL DEFAULT 'error-tag' COMMENT 'tag',
-  `rule` text NOT NULL COMMENT 'the rule in regular expression for match the keywork ',
+  `alarm_type` varchar(255) NOT NULL DEFAULT '日志告警' COMMENT 'the rule in regular expression for match the keywork ',
+  `json_filter` text NOT NULL COMMENT 'json_filter',
   `level` enum('critical','major','warning','minor','info') NOT NULL DEFAULT 'info' COMMENT 'alarm level(''critical'',''major'',''warning'',''minor'',''info'')',
   `status` enum('active','inactive') NOT NULL DEFAULT 'active' COMMENT 'record status',
   `creator` int(10) unsigned DEFAULT '0' COMMENT 'creator',
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
   `updator` int(10) unsigned DEFAULT '0' COMMENT 'updator',
   `updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'last update time',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
 
-DROP TABLE if exists `network_device`;
+-- Create syntax for TABLE 'network_device'
 CREATE TABLE `network_device` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
   `name` varchar(255) NOT NULL DEFAULT '' COMMENT 'name',
@@ -47,3 +40,21 @@ CREATE TABLE `network_device` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+
+-- Create syntax for TABLE 'syslog_keywork'
+CREATE TABLE `syslog_keywork` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `device_type` varchar(255) NOT NULL DEFAULT '未分类网络设备' COMMENT 'device_type',
+  `alarm_type` varchar(255) NOT NULL DEFAULT '未分类告警关键字' COMMENT 'alarm_type',
+  `path` varchar(255) NOT NULL DEFAULT '/data/networklog_collect/network.log' COMMENT 'path',
+  `prefix` varchar(255) DEFAULT NULL COMMENT 'path',
+  `suffix` varchar(255) NOT NULL DEFAULT '.log' COMMENT 'path',
+  `tag` varchar(255) NOT NULL DEFAULT 'error-tag' COMMENT 'path',
+  `sysylog_keywrod` text NOT NULL COMMENT 'json_filter',
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active' COMMENT 'record status',
+  `creator` int(10) unsigned DEFAULT '0' COMMENT 'creator',
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+  `updator` int(10) unsigned DEFAULT '0' COMMENT 'updator',
+  `updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'last update time',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;

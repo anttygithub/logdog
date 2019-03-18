@@ -52,11 +52,12 @@ type WatchFile struct {
 }
 
 type keyWord struct {
-	Key      string //device_type+alarm_type
-	Exp      string
-	Tag      string
-	FixedExp string         `json:"-"` //替换
-	Regex    *regexp.Regexp `json:"-"`
+	DeviceType string
+	AlarmType  string
+	Exp        string
+	Tag        string
+	FixedExp   string         `json:"-"` //替换
+	Regex      *regexp.Regexp `json:"-"`
 }
 
 //说明：这7个字段都是必须指定
@@ -104,10 +105,10 @@ func init() {
 	}()
 	go func() {
 		for {
-			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 			reloadNetdevCache()
-			fetchKeywordCache()
+			reloadKeywordCache()
 			reloadFilterCache()
+			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 		}
 	}()
 
