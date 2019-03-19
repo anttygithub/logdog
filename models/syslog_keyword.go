@@ -10,52 +10,56 @@ import (
 	"github.com/astaxie/beego/orm"
 )
 
-type AlarmRule struct {
-	Id         int       `orm:"column(id);auto" description:"id"`
-	AlarmType  string    `orm:"column(alarm_type);size(255)" description:"the rule in regular expression for match the keywork "`
-	JsonFilter string    `orm:"column(json_filter)" description:"json_filter"`
-	Level      string    `orm:"column(level)" description:"alarm level('critical','major','warning','minor','info')"`
-	Status     string    `orm:"column(status)" description:"record status"`
-	Creator    uint      `orm:"column(creator);null" description:"creator"`
-	Created    time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
-	Updator    uint      `orm:"column(updator);null" description:"updator"`
-	Updated    time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
-	Remarks    string    `orm:"column(remarks);size(255)" description:"remarks"`
+type SyslogKeyword struct {
+	Id            int       `orm:"column(id);auto" description:"id"`
+	DeviceType    string    `orm:"column(device_type);size(255)" description:"device_type"`
+	AlarmType     string    `orm:"column(alarm_type);size(255)" description:"alarm_type"`
+	Path          string    `orm:"column(path);size(255)" description:"path"`
+	Prefix        string    `orm:"column(prefix);size(255);null" description:"path"`
+	Suffix        string    `orm:"column(suffix);size(255)" description:"path"`
+	Tag           string    `orm:"column(tag);size(255)" description:"path"`
+	SyslogKeyword string    `orm:"column(syslog_keyword)" description:"json_filter"`
+	Status        string    `orm:"column(status)" description:"record status"`
+	Creator       uint      `orm:"column(creator);null" description:"creator"`
+	Created       time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
+	Updator       uint      `orm:"column(updator);null" description:"updator"`
+	Updated       time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
+	Remarks       string    `orm:"column(remarks);size(255);null" description:"remarks"`
 }
 
-func (t *AlarmRule) TableName() string {
-	return "alarm_rule"
+func (t *SyslogKeyword) TableName() string {
+	return "syslog_keyword"
 }
 
 func init() {
-	orm.RegisterModel(new(AlarmRule))
+	orm.RegisterModel(new(SyslogKeyword))
 }
 
-// AddAlarmRule insert a new AlarmRule into database and returns
+// AddSyslogKeyword insert a new SyslogKeyword into database and returns
 // last inserted Id on success.
-func AddAlarmRule(m *AlarmRule) (id int64, err error) {
+func AddSyslogKeyword(m *SyslogKeyword) (id int64, err error) {
 	o := orm.NewOrm()
 	id, err = o.Insert(m)
 	return
 }
 
-// GetAlarmRuleById retrieves AlarmRule by Id. Returns error if
+// GetSyslogKeywordById retrieves SyslogKeyword by Id. Returns error if
 // Id doesn't exist
-func GetAlarmRuleById(id int) (v *AlarmRule, err error) {
+func GetSyslogKeywordById(id int) (v *SyslogKeyword, err error) {
 	o := orm.NewOrm()
-	v = &AlarmRule{Id: id}
+	v = &SyslogKeyword{Id: id}
 	if err = o.Read(v); err == nil {
 		return v, nil
 	}
 	return nil, err
 }
 
-// GetAllAlarmRule retrieves all AlarmRule matches certain condition. Returns empty list if
+// GetAllSyslogKeyword retrieves all SyslogKeyword matches certain condition. Returns empty list if
 // no records exist
-func GetAllAlarmRule(query map[string]string, fields []string, sortby []string, order []string,
+func GetAllSyslogKeyword(query map[string]string, fields []string, sortby []string, order []string,
 	offset int64, limit int64) (ml []interface{}, err error) {
 	o := orm.NewOrm()
-	qs := o.QueryTable(new(AlarmRule))
+	qs := o.QueryTable(new(SyslogKeyword))
 	// query k=v
 	for k, v := range query {
 		// rewrite dot-notation to Object__Attribute
@@ -105,7 +109,7 @@ func GetAllAlarmRule(query map[string]string, fields []string, sortby []string, 
 		}
 	}
 
-	var l []AlarmRule
+	var l []SyslogKeyword
 	qs = qs.OrderBy(sortFields...)
 	if _, err = qs.Limit(limit, offset).All(&l, fields...); err == nil {
 		if len(fields) == 0 {
@@ -128,11 +132,11 @@ func GetAllAlarmRule(query map[string]string, fields []string, sortby []string, 
 	return nil, err
 }
 
-// UpdateAlarmRule updates AlarmRule by Id and returns error if
+// UpdateSyslogKeyword updates SyslogKeyword by Id and returns error if
 // the record to be updated doesn't exist
-func UpdateAlarmRuleById(m *AlarmRule) (err error) {
+func UpdateSyslogKeywordById(m *SyslogKeyword) (err error) {
 	o := orm.NewOrm()
-	v := AlarmRule{Id: m.Id}
+	v := SyslogKeyword{Id: m.Id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
@@ -143,15 +147,15 @@ func UpdateAlarmRuleById(m *AlarmRule) (err error) {
 	return
 }
 
-// DeleteAlarmRule deletes AlarmRule by Id and returns error if
+// DeleteSyslogKeyword deletes SyslogKeyword by Id and returns error if
 // the record to be deleted doesn't exist
-func DeleteAlarmRule(id int) (err error) {
+func DeleteSyslogKeyword(id int) (err error) {
 	o := orm.NewOrm()
-	v := AlarmRule{Id: id}
+	v := SyslogKeyword{Id: id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
-		if num, err = o.Delete(&AlarmRule{Id: id}); err == nil {
+		if num, err = o.Delete(&SyslogKeyword{Id: id}); err == nil {
 			fmt.Println("Number of records deleted in database:", num)
 		}
 	}

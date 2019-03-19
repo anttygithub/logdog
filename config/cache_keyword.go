@@ -20,10 +20,10 @@ func reloadKeywordCache() {
 			log.Fatalf("reloadKeywordCache:%s", err.Error())
 		}
 	}()
-	var res []models.SyslogKeywork
+	var res []models.SyslogKeyword
 	alarmCacheLock.Lock()
 	defer alarmCacheLock.Unlock()
-	if _, err = o.QueryTable(models.SyslogKeywork{}).Filter("status", "active").Limit(-1).All(&res); err != nil {
+	if _, err = o.QueryTable(models.SyslogKeyword{}).Filter("status", "active").Limit(-1).All(&res); err != nil {
 		return
 	}
 
@@ -33,7 +33,7 @@ func reloadKeywordCache() {
 		kw := keyWord{
 			DeviceType: v.DeviceType,
 			AlarmType:  v.AlarmType,
-			Exp:        v.SysylogKeywrod,
+			Exp:        v.SyslogKeyword,
 			Tag:        v.Tag,
 		}
 		tmpkwarray := []keyWord{}
@@ -43,8 +43,8 @@ func reloadKeywordCache() {
 		tmpkwarray = append(tmpkwarray, kw)
 		alarmCache[key] = tmpkwarray
 
-		log.Printf("reloadKeywordCache,v:%#v", alarmCache)
 	}
+	log.Printf("reloadKeywordCache,v:%#v", alarmCache)
 }
 
 // fetchKeywordCache .

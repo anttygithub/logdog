@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/astaxie/beego/orm"
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/hpcloud/tail"
 	"github.com/sdvdxl/falcon-logdog/config"
 	"github.com/sdvdxl/falcon-logdog/log"
+	"github.com/sdvdxl/falcon-logdog/models"
 	cmap "github.com/streamrail/concurrent-map"
 )
 
@@ -247,7 +250,7 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 		value := ""
 		if p.Regex.MatchString(line) { //match the keyword
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
-			if !matchNetdevType(Netdev, p.DeviceType) { //match network device type and keywork cache
+			if !matchNetdevType(Netdev, p.DeviceType) { //match network device type and keyword cache
 				continue
 			}
 			title, level := matchFilter(Netdev, p.AlarmType) //match network device and filter cache
@@ -259,7 +262,7 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 
 			var data config.PushData
 			//mod by dennis
-			hashkey := filename + "|" + p.Tag + "=" + p.Exp
+			hashkey := filename + "|" + p.Tag + "=" + p.Exp + "|" + p.DeviceType
 
 			if v, ok := keywords.Get(hashkey); ok {
 				d := v.(config.PushData)
@@ -303,7 +306,7 @@ func postData() {
 				}
 
 				log.Debug("pushing data:", string(bytes))
-
+				insertAlarmHistory(v.(config.PushData))
 				resp, err := http.Post(c.Agent, "plain/text", strings.NewReader(string(bytes)))
 				if err != nil {
 					log.Error(" post data ", string(bytes), " to agent ", err)
@@ -358,7 +361,7 @@ func matchFilter(Netdev map[string]interface{}, AlarmType string) (title, alarmL
 			}
 			if !ArrayIn(v, Netdev[k].(string)) {
 				flag = false
-				log.Debugf("can not match the filter :%s from cache", k+":"+Netdev[k].(string))
+				log.Debugf("can not match the filter [%s:%#v] netdev[%s] from cache", k, v, Netdev[k].(string))
 				break
 			}
 		}
@@ -379,4 +382,35 @@ func ArrayIn(strs []string, str string) bool {
 		}
 	}
 	return false
+}
+
+//insert alarm into the table alarm_history
+func insertAlarmHistory(a config.PushData) {
+	o := orm.NewOrm()
+	m := models.AlarmHistory{
+		Metric:    a.Metric,
+		Endpoint:  a.Endpoint,
+		Timestamp: a.Timestamp,
+		Value:     fmt.Sprint(a.Value),
+		Type:      a.Type,
+		Tag:       a.Tag,
+		Status:    a.Status,
+		Desc:      a.Desc,
+		Level:     a.Level,
+	}
+	var err error
+	o.Begin()
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
+		if err != nil {
+			log.Fatalf("insert alarm history fail:%s", err.Error())
+			o.Rollback()
+		} else {
+			o.Commit()
+		}
+	}()
+	_, err = o.Insert(&m)
+	return
 }

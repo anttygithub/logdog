@@ -10,55 +10,57 @@ import (
 	"github.com/astaxie/beego/orm"
 )
 
-type SyslogKeywork struct {
-	Id             int       `orm:"column(id);auto" description:"id"`
-	DeviceType     string    `orm:"column(device_type);size(255)" description:"device_type"`
-	AlarmType      string    `orm:"column(alarm_type);size(255)" description:"alarm_type"`
-	Path           string    `orm:"column(path);size(255)" description:"path"`
-	Prefix         string    `orm:"column(prefix);size(255);null" description:"path"`
-	Suffix         string    `orm:"column(suffix);size(255)" description:"path"`
-	Tag            string    `orm:"column(tag);size(255)" description:"path"`
-	SysylogKeywrod string    `orm:"column(sysylog_keywrod)" description:"json_filter"`
-	Status         string    `orm:"column(status)" description:"record status"`
-	Creator        uint      `orm:"column(creator);null" description:"creator"`
-	Created        time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
-	Updator        uint      `orm:"column(updator);null" description:"updator"`
-	Updated        time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
+type AlarmHistory struct {
+	Id        int       `orm:"column(id);auto" description:"id"`
+	Metric    string    `orm:"column(metric);size(255)" description:"device_type"`
+	Endpoint  string    `orm:"column(endpoint);size(255)" description:"alarm_type"`
+	Timestamp int64     `orm:"column(timestamp)" description:"path"`
+	Value     string    `orm:"column(value)" description:"path"`
+	Type      string    `orm:"column(type);size(255)" description:"path"`
+	Tag       string    `orm:"column(tag);size(255)" description:"path"`
+	Desc      string    `orm:"column(desc);size(255)" description:"json_filter"`
+	Level     string    `orm:"column(level);size(255)" description:"json_filter"`
+	Status    string    `orm:"column(status);size(255)" description:"record status"`
+	Creator   uint      `orm:"column(creator);null" description:"updator"`
+	Created   time.Time `orm:"column(created);type(timestamp);auto_now_add" description:"created time"`
+	Updator   uint      `orm:"column(updator);null" description:"updator"`
+	Updated   time.Time `orm:"column(updated);type(timestamp);auto_now" description:"last update time"`
+	Remarks   string    `orm:"column(remarks);size(255);null" description:"remarks"`
 }
 
-func (t *SyslogKeywork) TableName() string {
-	return "syslog_keywork"
+func (t *AlarmHistory) TableName() string {
+	return "alarm_history"
 }
 
 func init() {
-	orm.RegisterModel(new(SyslogKeywork))
+	orm.RegisterModel(new(AlarmHistory))
 }
 
-// AddSyslogKeywork insert a new SyslogKeywork into database and returns
+// AddAlarmHistory insert a new AlarmHistory into database and returns
 // last inserted Id on success.
-func AddSyslogKeywork(m *SyslogKeywork) (id int64, err error) {
+func AddAlarmHistory(m *AlarmHistory) (id int64, err error) {
 	o := orm.NewOrm()
 	id, err = o.Insert(m)
 	return
 }
 
-// GetSyslogKeyworkById retrieves SyslogKeywork by Id. Returns error if
+// GetAlarmHistoryById retrieves AlarmHistory by Id. Returns error if
 // Id doesn't exist
-func GetSyslogKeyworkById(id int) (v *SyslogKeywork, err error) {
+func GetAlarmHistoryById(id int) (v *AlarmHistory, err error) {
 	o := orm.NewOrm()
-	v = &SyslogKeywork{Id: id}
+	v = &AlarmHistory{Id: id}
 	if err = o.Read(v); err == nil {
 		return v, nil
 	}
 	return nil, err
 }
 
-// GetAllSyslogKeywork retrieves all SyslogKeywork matches certain condition. Returns empty list if
+// GetAllAlarmHistory retrieves all AlarmHistory matches certain condition. Returns empty list if
 // no records exist
-func GetAllSyslogKeywork(query map[string]string, fields []string, sortby []string, order []string,
+func GetAllAlarmHistory(query map[string]string, fields []string, sortby []string, order []string,
 	offset int64, limit int64) (ml []interface{}, err error) {
 	o := orm.NewOrm()
-	qs := o.QueryTable(new(SyslogKeywork))
+	qs := o.QueryTable(new(AlarmHistory))
 	// query k=v
 	for k, v := range query {
 		// rewrite dot-notation to Object__Attribute
@@ -108,7 +110,7 @@ func GetAllSyslogKeywork(query map[string]string, fields []string, sortby []stri
 		}
 	}
 
-	var l []SyslogKeywork
+	var l []AlarmHistory
 	qs = qs.OrderBy(sortFields...)
 	if _, err = qs.Limit(limit, offset).All(&l, fields...); err == nil {
 		if len(fields) == 0 {
@@ -131,11 +133,11 @@ func GetAllSyslogKeywork(query map[string]string, fields []string, sortby []stri
 	return nil, err
 }
 
-// UpdateSyslogKeywork updates SyslogKeywork by Id and returns error if
+// UpdateAlarmHistory updates AlarmHistory by Id and returns error if
 // the record to be updated doesn't exist
-func UpdateSyslogKeyworkById(m *SyslogKeywork) (err error) {
+func UpdateAlarmHistoryById(m *AlarmHistory) (err error) {
 	o := orm.NewOrm()
-	v := SyslogKeywork{Id: m.Id}
+	v := AlarmHistory{Id: m.Id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
@@ -146,15 +148,15 @@ func UpdateSyslogKeyworkById(m *SyslogKeywork) (err error) {
 	return
 }
 
-// DeleteSyslogKeywork deletes SyslogKeywork by Id and returns error if
+// DeleteAlarmHistory deletes AlarmHistory by Id and returns error if
 // the record to be deleted doesn't exist
-func DeleteSyslogKeywork(id int) (err error) {
+func DeleteAlarmHistory(id int) (err error) {
 	o := orm.NewOrm()
-	v := SyslogKeywork{Id: id}
+	v := AlarmHistory{Id: id}
 	// ascertain id exists in the database
 	if err = o.Read(&v); err == nil {
 		var num int64
-		if num, err = o.Delete(&SyslogKeywork{Id: id}); err == nil {
+		if num, err = o.Delete(&AlarmHistory{Id: id}); err == nil {
 			fmt.Println("Number of records deleted in database:", num)
 		}
 	}
