@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,15 +68,15 @@ func logFileWatcher(file *config.WatchFile) {
 	}
 	defer watcher.Close()
 	done := make(chan bool)
-	log.Info("watch file 2222222222222222222", file)
+	// log.Info("watch file 2222222222222222222", file)
 	go func() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				log.Info("-----------------EVENT------------------%v file %v, basePath:%v", event.Op, event.Name, path.Base(event.Name))
+				// log.Info("-----------------EVENT------------------%v file %v, basePath:%v", event.Op, event.Name, path.Base(event.Name))
 				var resf config.DresultFile
 				if event.Op == fsnotify.Create {
-					log.Debug("--------------ResultFiles CREATE 1----------------", file.ResultFiles)
+					// log.Debug("--------------ResultFiles CREATE 1----------------", file.ResultFiles)
 					filepath.Walk(event.Name, func(path string, info os.FileInfo, err error) error {
 						resf.FileName = event.Name
 						resf.ModTime = info.ModTime()
@@ -86,7 +86,7 @@ func logFileWatcher(file *config.WatchFile) {
 								logTail := file.ResultFiles[i].LogTail
 								if event.Name == file.ResultFiles[i].FileName {
 									if logTail != nil {
-										log.Debug("-------------- 1 STOP tail ---------------", i, file.ResultFiles)
+										// log.Debug("-------------- 1 STOP tail ---------------", i, file.ResultFiles)
 										logTail.Stop()
 									}
 									file.ResultFiles = append(file.ResultFiles[:i], file.ResultFiles[i+1:]...)
@@ -104,15 +104,15 @@ func logFileWatcher(file *config.WatchFile) {
 						}
 						return err
 					})
-					log.Debug("--------------ResultFiles CREATE 2----------------", file.ResultFiles, len(file.ResultFiles))
+					// log.Debug("--------------ResultFiles CREATE 2----------------", file.ResultFiles, len(file.ResultFiles))
 				} else if event.Op == fsnotify.Rename || event.Op == fsnotify.Remove {
-					log.Debug("--------------ResultFiles REMOVE/RENAME 2----------------", file.ResultFiles)
+					// log.Debug("--------------ResultFiles REMOVE/RENAME 2----------------", file.ResultFiles)
 					filepath.Walk(event.Name, func(path string, info os.FileInfo, err error) error {
 						for i := 0; i < len(file.ResultFiles); i++ {
 							if event.Name == file.ResultFiles[i].FileName {
 								logTail := file.ResultFiles[i].LogTail
 								if logTail != nil {
-									log.Debug("-------------- 2 STOP tail ---------------", i, file.ResultFiles)
+									// log.Debug("-------------- 2 STOP tail ---------------", i, file.ResultFiles)
 									logTail.Stop()
 								}
 								file.ResultFiles = append(file.ResultFiles[:i], file.ResultFiles[i+1:]...)
@@ -120,7 +120,7 @@ func logFileWatcher(file *config.WatchFile) {
 						}
 						return err
 					})
-					log.Debug("--------------ResultFiles REMOVE/RENAME 2----------------", file.ResultFiles)
+					// log.Debug("--------------ResultFiles REMOVE/RENAME 2----------------", file.ResultFiles)
 				}
 			case err := <-watcher.Errors:
 				log.Error(err)
@@ -173,7 +173,7 @@ func readFileAndSetTail(file *config.WatchFile) {
 
 			go func() {
 				for line := range tail.Lines {
-					log.Debug("log line: ", line.Text)
+					// log.Debug("log line: ", line.Text)
 					//mod by dennis,传入更多参数
 					handleKeywords(*file, filename, line.Text)
 				}
@@ -232,8 +232,8 @@ func setLogFile() {
 
 // 查找关键词
 func handleKeywords(file config.WatchFile, filename string, line string) {
-	log.Debug(filename)
-	log.Debugf("WatchFile:%+v", file)
+	// log.Debug(filename)
+	// log.Debugf("WatchFile:%+v", file)
 	//get network device cache
 	ip := getIPFromLog(line)
 	if ip == "" {
@@ -262,8 +262,9 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 
 			var data config.PushData
 			//mod by dennis
-			hashkey := filename + "|" + p.Tag + "=" + p.Exp + "|" + p.DeviceType
-
+			UUID := GenerateID("T")
+			hashkey := filename + "|" + p.Tag + "=" + p.Exp + "|" + p.DeviceType + "|" + UUID
+			log.Debugf("hashkey:%s", hashkey)
 			if v, ok := keywords.Get(hashkey); ok {
 				d := v.(config.PushData)
 				d.Value = append(d.Value, value)
@@ -307,7 +308,8 @@ func postData() {
 
 				log.Debug("pushing data:", string(bytes))
 				insertAlarmHistory(v.(config.PushData))
-				resp, err := http.Post(c.Agent, "plain/text", strings.NewReader(string(bytes)))
+				// resp, err := http.Post(c.Agent, "plain/text", strings.NewReader(string(bytes)))
+				resp, err := http.Post(c.Agent, "application/json", strings.NewReader(string(bytes)))
 				if err != nil {
 					log.Error(" post data ", string(bytes), " to agent ", err)
 				} else {
@@ -412,5 +414,21 @@ func insertAlarmHistory(a config.PushData) {
 		}
 	}()
 	_, err = o.Insert(&m)
+	return
+}
+
+// GenerateID generate id from nano time with prefix
+func GenerateID(prefix string) (id string) {
+	id = strconv.FormatInt(time.Now().UnixNano()/10000, 10)
+	if len(id) > 15 {
+		id = id[:15]
+	}
+	if len(id) == 14 {
+		id = "0" + id
+	}
+	id = prefix + id
+	if len(id) > 16 {
+		id = id[:16]
+	}
 	return
 }

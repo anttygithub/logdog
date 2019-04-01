@@ -56,7 +56,7 @@ func fetchKeywordCache() {
 		alarmCacheLock.RLock()
 	}
 	defer alarmCacheLock.RUnlock()
-	WFS := []WatchFile{}
+	WFS := []*WatchFile{}
 	for k, v := range alarmCache {
 		str := strings.Split(k, "??")
 		if len(str) != 3 {
@@ -69,9 +69,16 @@ func fetchKeywordCache() {
 			Suffix:   str[2],
 			Keywords: v,
 		}
-		WFS = append(WFS, tmpWF)
+		WFS = append(WFS, &tmpWF)
 	}
-	Cfg.WatchFiles = WFS
+	if len(WFS) != len(Cfg.WatchFiles) {
+		log.Fatal("alarm rule config error,please check len(WFS)!= len(Cfg.WatchFiles)")
+		return
+	}
+	for i := 0; i < len(Cfg.WatchFiles); i++ {
+		Cfg.WatchFiles[i] = *WFS[i]
+	}
+	// Cfg.WatchFiles = WFS
 	log.Printf("load alarm db cache:%#v", Cfg)
 	return
 }

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/astaxie/beego/orm"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-errors/errors"
 	"github.com/hpcloud/tail"
@@ -107,6 +106,10 @@ func init() {
 		for {
 			reloadNetdevCache()
 			reloadKeywordCache()
+			fetchKeywordCache()
+			if err = checkConfig(Cfg); err != nil {
+				log.Fatal(err)
+			}
 			reloadFilterCache()
 			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 		}
@@ -128,10 +131,10 @@ func ReadConfig(configFile string) (*Config, error) {
 
 	fmt.Println(config.LogLevel)
 
-	// // 检查配置项目
-	// if err := checkConfig(config); err != nil {
-	// 	return nil, err
-	// }
+	// 检查配置项目
+	if err := checkConfig(config); err != nil {
+		return nil, err
+	}
 
 	log.Println("config init success, start to work ...")
 	return config, nil
@@ -150,16 +153,7 @@ func checkConfig(config *Config) error {
 		log.Println("host not set will use system's name:", config.Host)
 
 	}
-	if config.AlarmRuleDB.Enabled {
-		if config.LogLevel == "DEBUG" {
-			orm.Debug = true
-		} else {
-			orm.Debug = false
-		}
-		fetchKeywordCache()
-	} else {
-		log.Println("INFO:the config.AlarmRuleDB.Enabled is not true")
-	}
+
 	for i, v := range config.WatchFiles {
 		//检查路径
 		fInfo, err := os.Stat(v.Path)
