@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/go-errors/errors"
 	"github.com/hpcloud/tail"
 )
@@ -96,22 +95,16 @@ func init() {
 	if err != nil {
 		log.Fatal("InitDatabase ERROR: ", err)
 	}
-	if err = checkConfig(Cfg); err != nil {
-		log.Fatal(err)
-	}
+	reloadKeywordCache()
 	go func() {
 		ConfigFileWatcher()
 	}()
 	go func() {
 		for {
+			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 			reloadNetdevCache()
 			reloadKeywordCache()
-			fetchKeywordCache()
-			if err = checkConfig(Cfg); err != nil {
-				log.Fatal(err)
-			}
 			reloadFilterCache()
-			time.Sleep(time.Second * time.Duration(Cfg.AlarmRuleDB.ReloadTime))
 		}
 	}()
 
@@ -131,10 +124,10 @@ func ReadConfig(configFile string) (*Config, error) {
 
 	fmt.Println(config.LogLevel)
 
-	// 检查配置项目
-	if err := checkConfig(config); err != nil {
-		return nil, err
-	}
+	// // 检查配置项目
+	// if err := checkConfig(config); err != nil {
+	// 	return nil, err
+	// }
 
 	log.Println("config init success, start to work ...")
 	return config, nil
@@ -204,38 +197,38 @@ func checkConfig(config *Config) error {
 
 //ConfigFileWatcher 配置文件监控,可以实现热更新
 func ConfigFileWatcher() {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// watcher, err := fsnotify.NewWatcher()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	defer watcher.Close()
+	// defer watcher.Close()
 
-	done := make(chan bool)
-	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				if event.Name == configFile && (event.Op == fsnotify.Chmod || event.Op == fsnotify.Rename || event.Op == fsnotify.Write || event.Op == fsnotify.Create) {
-					log.Println("modified config file", event.Name, "will reaload config")
-					if cfg, err := ReadConfig(configFile); err != nil {
-						log.Println("ERROR: config has error, will not use old config", err)
-					} else if checkConfig(Cfg) != nil {
-						log.Println("ERROR: config has error, will not use old config", err)
-					} else {
-						log.Println("config reload success")
-						Cfg = cfg
-					}
-				}
-			case err := <-watcher.Errors:
-				log.Fatal(err)
-			}
-		}
-	}()
+	// done := make(chan bool)
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case event := <-watcher.Events:
+	// 			if event.Name == configFile && (event.Op == fsnotify.Chmod || event.Op == fsnotify.Rename || event.Op == fsnotify.Write || event.Op == fsnotify.Create) {
+	// 				log.Println("modified config file", event.Name, "will reaload config")
+	// 				if cfg, err := ReadConfig(configFile); err != nil {
+	// 					log.Println("ERROR: config has error, will not use old config", err)
+	// 				} else if checkConfig(Cfg) != nil {
+	// 					log.Println("ERROR: config has error, will not use old config", err)
+	// 				} else {
+	// 					log.Println("config reload success")
+	// 					Cfg = cfg
+	// 				}
+	// 			}
+	// 		case err := <-watcher.Errors:
+	// 			log.Fatal(err)
+	// 		}
+	// 	}
+	// }()
 
-	err = watcher.Add(".")
-	if err != nil {
-		log.Fatal(err)
-	}
-	<-done
+	// err = watcher.Add(".")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// <-done
 }

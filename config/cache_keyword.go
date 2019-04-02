@@ -14,6 +14,13 @@ var alarmCacheLock = &sync.RWMutex{}
 
 func reloadKeywordCache() {
 	var err error
+	if !Cfg.AlarmRuleDB.Enabled {
+		log.Println("INFO:the config.AlarmRuleDB.Enabled is not true")
+		if err = checkConfig(Cfg); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	o := orm.NewOrm()
 	defer func() {
 		if err != nil {
@@ -44,18 +51,22 @@ func reloadKeywordCache() {
 		alarmCache[key] = tmpkwarray
 
 	}
-	log.Printf("reloadKeywordCache,v:%#v", alarmCache)
+	fetchKeywordCache()
+	if err = checkConfig(Cfg); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("reloadKeywordCache num:%+v", alarmCache)
 }
 
 // fetchKeywordCache .
 func fetchKeywordCache() {
-	alarmCacheLock.RLock()
-	if len(alarmCache) == 0 {
-		alarmCacheLock.RUnlock()
-		reloadKeywordCache()
-		alarmCacheLock.RLock()
-	}
-	defer alarmCacheLock.RUnlock()
+	// alarmCacheLock.RLock()
+	// if len(alarmCache) == 0 {
+	// 	alarmCacheLock.RUnlock()
+	// 	reloadKeywordCache()
+	// 	alarmCacheLock.RLock()
+	// }
+	// defer alarmCacheLock.RUnlock()
 	WFS := []*WatchFile{}
 	for k, v := range alarmCache {
 		str := strings.Split(k, "??")
@@ -71,14 +82,14 @@ func fetchKeywordCache() {
 		}
 		WFS = append(WFS, &tmpWF)
 	}
-	if len(WFS) != len(Cfg.WatchFiles) {
-		log.Fatal("alarm rule config error,please check len(WFS)!= len(Cfg.WatchFiles)")
+	if len(WFS) != 1 || len(Cfg.WatchFiles) != 1 { //暂时只考虑1个watchfiles的config
+		log.Fatal("alarm rule config error,please check len(WFS) != len(Cfg.WatchFiles) != 1")
 		return
 	}
 	for i := 0; i < len(Cfg.WatchFiles); i++ {
-		Cfg.WatchFiles[i] = *WFS[i]
+		Cfg.WatchFiles[i].Path = WFS[i].Path //暂时只考虑keyword和Path更新
+		Cfg.WatchFiles[i].Keywords = WFS[i].Keywords
 	}
-	// Cfg.WatchFiles = WFS
-	log.Printf("load alarm db cache:%#v", Cfg)
+	// log.Printf("load alarm db cache:%#v", Cfg)
 	return
 }

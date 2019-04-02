@@ -81,7 +81,7 @@ func reloadFilterCache() {
 	for k := range filterCache {
 		sort.Sort(filterCache[k])
 	}
-	log.Printf("reloadFilterCache:%v", filterCache)
+	log.Printf("reloadFilterCache num:%d", len(filterCache))
 }
 
 // FetchFilterCache .

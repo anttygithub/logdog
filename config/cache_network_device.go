@@ -32,7 +32,7 @@ func reloadNetdevCache() {
 	for _, v := range res {
 		netdevCache[v.ManageIp] = OrmStructToMap(v)
 	}
-	log.Printf("reloadNetdevCache:%v", netdevCache)
+	log.Printf("reloadNetdevCache num:%d", len(netdevCache))
 }
 
 // FetchNetdevCache .

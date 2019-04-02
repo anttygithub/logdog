@@ -250,12 +250,18 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 		value := ""
 		if p.Regex.MatchString(line) { //match the keyword
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
-			if !matchNetdevType(Netdev, p.DeviceType) { //match network device type and keyword cache
+			if !matchNetdevType(Netdev, p.DeviceType) && p.DeviceType != "" { //match network device type and keyword cache
+				log.Debugf("not matchNetdevType %s ", p.DeviceType)
 				continue
 			}
-			title, level := matchFilter(Netdev, p.AlarmType) //match network device and filter cache
-			if title == "" && level == "" {
-				continue
+			level := ""
+			if p.AlarmType != "" {
+				match := false
+				match, level = matchFilter(Netdev, p.AlarmType) //match network device and filter cache
+				if !match {
+					log.Debugf("not matchFilter %s ", p.AlarmType)
+					continue
+				}
 			}
 			//modify by dennis
 			value = line
@@ -279,7 +285,7 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 					Type:   "network",                                                                                                     //modify by nic
 					Tag:    "filename=" + filename + ",prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp, //modify by nic
 					Status: "PROBLEM",                                                                                                     //add by nic
-					Desc:   title,                                                                                                         //add by nic
+					Desc:   p.AlarmType,                                                                                                   //add by nic
 					Level:  level,                                                                                                         //add by nic
 				}
 			}
@@ -345,10 +351,10 @@ func matchNetdevType(Netdev map[string]interface{}, DeviceType string) bool {
 	return true
 }
 
-func matchFilter(Netdev map[string]interface{}, AlarmType string) (title, alarmLevel string) {
+func matchFilter(Netdev map[string]interface{}, AlarmType string) (bool, string) {
 	allFilters := config.FetchFilterCache()
 	if _, ok := allFilters[AlarmType]; !ok {
-		return
+		return false, ""
 	}
 	Filters := allFilters[AlarmType]
 
@@ -368,12 +374,10 @@ func matchFilter(Netdev map[string]interface{}, AlarmType string) (title, alarmL
 			}
 		}
 		if flag == true {
-			title = AlarmType
-			alarmLevel = filter.Level
-			return
+			return true, filter.Level
 		}
 	}
-	return
+	return false, ""
 }
 
 // ArrayIn .
