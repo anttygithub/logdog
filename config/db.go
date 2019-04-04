@@ -14,7 +14,7 @@ func InitDatabase() error {
 	sectet := Cfg.AlarmRuleDB.Password
 	IPPort := Cfg.AlarmRuleDB.Address
 	database := Cfg.AlarmRuleDB.DbName
-	connectString := key + ":" + sectet + "@tcp(" + IPPort + ")/" + database
+	connectString := key + ":" + sectet + "@tcp(" + IPPort + ")/" + database + "?charset=utf8&loc=Local"
 	err := orm.RegisterDriver("mysql", orm.DRMySQL)
 	if err != nil {
 		return err

@@ -2,6 +2,8 @@ package config
 
 import (
 	"log"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -36,6 +38,10 @@ func reloadKeywordCache() {
 
 	alarmCache = make(map[string][]keyWord)
 	for _, v := range res {
+		if v.SyslogKeyword == "" || v.Tag == "" {
+			log.Fatalf("ERROR: keyword's exp and tag are requierd :%+v", v)
+			continue
+		}
 		key := v.Path + "??" + v.Prefix + "??" + v.Suffix
 		kw := keyWord{
 			DeviceType: v.DeviceType,
@@ -43,6 +49,13 @@ func reloadKeywordCache() {
 			Exp:        v.SyslogKeyword,
 			Tag:        v.Tag,
 		}
+		if kw.Regex, err = regexp.Compile(kw.Exp); err != nil {
+			log.Fatalf("ERROR: regexp.Compile fail :%s", err.Error())
+			continue
+		}
+		log.Println("INFO: tag:", kw.Tag, "regex", kw.Regex.String())
+		kw.FixedExp = string(fixExpRegex.ReplaceAll([]byte(kw.Exp), []byte(".")))
+
 		tmpkwarray := []keyWord{}
 		if _, ok := alarmCache[key]; ok {
 			tmpkwarray = alarmCache[key]
@@ -52,9 +65,6 @@ func reloadKeywordCache() {
 
 	}
 	fetchKeywordCache()
-	if err = checkConfig(Cfg); err != nil {
-		log.Fatal(err)
-	}
 	log.Printf("reloadKeywordCache num:%+v", alarmCache)
 }
 
@@ -87,7 +97,25 @@ func fetchKeywordCache() {
 		return
 	}
 	for i := 0; i < len(Cfg.WatchFiles); i++ {
-		Cfg.WatchFiles[i].Path = WFS[i].Path //暂时只考虑keyword和Path更新
+		//检查路径
+		fInfo, err := os.Stat(WFS[i].Path)
+		if err != nil {
+			log.Fatalf("os.Stat error:%s", err.Error())
+			return
+		}
+
+		if !fInfo.IsDir() {
+			Cfg.WatchFiles[i].PathIsFile = true
+		}
+
+		//检查后缀,如果没有,则默认为.log
+		Cfg.WatchFiles[i].Prefix = strings.TrimSpace(WFS[i].Prefix)
+		Cfg.WatchFiles[i].Suffix = strings.TrimSpace(WFS[i].Suffix)
+		if Cfg.WatchFiles[i].Suffix == "" {
+			log.Println("file pre ", Cfg.WatchFiles[i].Path, "suffix is no set, will use .log")
+			Cfg.WatchFiles[i].Suffix = ".log"
+		}
+		Cfg.WatchFiles[i].Path = WFS[i].Path
 		Cfg.WatchFiles[i].Keywords = WFS[i].Keywords
 	}
 	// log.Printf("load alarm db cache:%#v", Cfg)
