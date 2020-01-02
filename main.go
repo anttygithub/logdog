@@ -250,17 +250,19 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 		value := ""
 		if p.Regex.MatchString(line) { //match the keyword
 			log.Debugf("exp:%v match ===> line: %v ", p.Regex.String(), line)
-			if !matchNetdevType(Netdev, p.DeviceType) && p.DeviceType != "" { //match network device type and keyword cache
-				log.Debugf("not matchNetdevType %s ", p.DeviceType)
-				continue
-			}
 			level := ""
-			if p.AlarmType != "" {
-				match := false
-				match, level = matchFilter(Netdev, p.AlarmType) //match network device and filter cache
-				if !match {
-					log.Debugf("not matchFilter %s ", p.AlarmType)
+			if config.Cfg.MonType == "network" {
+				if !matchNetdevType(Netdev, p.DeviceType) && p.DeviceType != "" { //match network device type and keyword cache
+					log.Debugf("not matchNetdevType %s ", p.DeviceType)
 					continue
+				}
+				if p.AlarmType != "" {
+					match := false
+					match, level = matchFilter(Netdev, p.AlarmType) //match network device and filter cache
+					if !match {
+						log.Debugf("not matchFilter %s ", p.AlarmType)
+						continue
+					}
 				}
 			}
 			//modify by dennis
@@ -282,7 +284,7 @@ func handleKeywords(file config.WatchFile, filename string, line string) {
 					Timestamp: time.Now().Unix(),
 					Value:     stringValue,
 					//Step:        config.Cfg.Timer,  //modify by nic
-					Type:   "network",                                                                                                     //modify by nic
+					Type:   config.Cfg.MonType,                                                                                            //modify by nic
 					Tag:    "filename=" + filename + ",prefix=" + file.Prefix + ",suffix=" + file.Suffix + "," + p.Tag + "=" + p.FixedExp, //modify by nic
 					Status: "PROBLEM",                                                                                                     //add by nic
 					Desc:   p.AlarmType,                                                                                                   //add by nic

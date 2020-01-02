@@ -18,6 +18,7 @@ type Config struct {
 	Metric      string      //度量名称,比如log.console 或者log
 	Timer       int         // 每隔多长时间（秒）上报
 	Host        string      //主机名称
+	MonType     string      `json:"mon_type"` //监控类型:网络设备network、主机host
 	Agent       string      //agent api url
 	WatchFiles  []WatchFile `json:"files"`
 	LogLevel    string
